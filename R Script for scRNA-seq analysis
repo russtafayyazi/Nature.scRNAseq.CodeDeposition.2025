@@ -1,0 +1,1620 @@
+############## Single-Cell transcriptomic data analysis--EVT0185 vs vehicle, Author: Russta Fayyazi (McMaster University) ##############
+### the reference website: https://satijalab.org/seurat/articles/get_started_v5_new ###
+
+#figures included in manuscript = extended data figures: 1q 1s 1t 3i 8d 8e 9o 12d
+
+library(Seurat)
+library(Matrix)
+library(data.table)
+library(R.utils)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+
+#SECTION 1. CREATING SEURAT OBJECTS FOR HUMAN DATA__________________________________________________________________________________________________
+#____________________________________________________________________________________________________________________________________________________
+
+#NASH tumor condition_______________________________________________________________________________________________________________________________
+#Alvarez paper has all 6 samples in 1 feature file, 1 matrix file, and 1 barcode file, but also includes a metadata file
+#so, need to subset to separate the samples to include only NASH tumor
+metadata_alvarez <- fread("GSE189175_meta_data.tsv", header = TRUE)
+features_alvarez <- fread("Alvarez_counts_features.tsv.gz", header = FALSE)
+barcodes_alvarez <- fread("Alvarez_counts_barcodes.tsv.gz", header = FALSE)
+counts_alvarez <- readMM("Alvarez_counts_matrix.mtx.gz")
+dimnames(counts_alvarez) <- list(as.character(features_alvarez$V1), as.character(barcodes_alvarez$V2))
+counts_alvarez <- as(counts_alvarez, "CsparseMatrix")
+#create objects for patient 2 tumor (NASH)
+features_NASH_tum_1 <- features_alvarez
+barcodes_NASH_tum_1 <- barcodes_alvarez[20256:26126,2]
+counts_NASH_tum_1 <- counts_alvarez[,20256:26126]
+dim(counts_NASH_tum_1)  # Should match the length of barcodes_NASH_tum_1
+dim(barcodes_NASH_tum_1)
+#create objects for patient 3 tumor (NASH)
+features_NASH_tum_2 <- features_alvarez
+barcodes_NASH_tum_2 <- barcodes_alvarez[32704:36040,2]
+counts_NASH_tum_2 <- counts_alvarez[,32704:36040]
+dim(counts_NASH_tum_2)  # Should match the length of barcodes_NASH_tum_2
+dim(barcodes_NASH_tum_2)
+# Create gene-cell matrices 
+NASH_tum_1 <- CreateSeuratObject(counts = counts_NASH_tum_1, project = "Alvarez_NASH_tum_1")
+NASH_tum_2 <- CreateSeuratObject(counts = counts_NASH_tum_2, project = "Alvarez_NASH_tum_2")
+# Preprocess data
+NASH_tum_1 <- subset(NASH_tum_1, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+NASH_tum_1 <- NormalizeData(NASH_tum_1)
+NASH_tum_1 <- FindVariableFeatures(NASH_tum_1)
+NASH_tum_2 <- subset(NASH_tum_2, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+NASH_tum_2 <- NormalizeData(NASH_tum_2)
+NASH_tum_2 <- FindVariableFeatures(NASH_tum_2)
+# Integrate data to create single object for NASH tum
+list_of_datasets <- list(NASH_tum_1, NASH_tum_2)
+anchors <- FindIntegrationAnchors(object.list = list_of_datasets, dims = 1:25)
+integrated_data_nash_tumor <- IntegrateData(anchorset = anchors, dims = 1:25)
+#save integrated object
+save(integrated_data_nash_tumor, file = "Alvarez_nashTumor_integratedData.RData")
+
+#NASH liver condition_______________________________________________________________________________________________________________________________
+#Alvarez paper has all 6 samples in 1 feature file, 1 matrix file, and 1 barcode file, but also includes a metadata file
+#so, need to subset to separate the samples to include only NASH liver
+metadata_alvarez <- fread("GSE189175_meta_data.tsv", header = TRUE)
+features_alvarez <- fread("Alvarez_counts_features.tsv.gz", header = FALSE)
+barcodes_alvarez <- fread("Alvarez_counts_barcodes.tsv.gz", header = FALSE)
+counts_alvarez <- readMM("Alvarez_counts_matrix.mtx.gz")
+dimnames(counts_alvarez) <- list(as.character(features_alvarez$V1), as.character(barcodes_alvarez$V2))
+counts_alvarez <- as(counts_alvarez, "CsparseMatrix")
+#create objects for patient 2 NonTumorAdj (NASH)
+features_NASH_adj_1 <- features_alvarez
+barcodes_NASH_adj_1 <- barcodes_alvarez[26127:32703,2]
+counts_NASH_adj_1 <- counts_alvarez[,26127:32703]
+dim(counts_NASH_adj_1)  # Should match the length of barcodes_NASH_adj_1
+dim(barcodes_NASH_adj_1)
+#create objects for patient 3 NonTumorAdj (NASH)
+features_NASH_adj_2 <- features_alvarez
+barcodes_NASH_adj_2 <- barcodes_alvarez[36041:39995,2]
+counts_NASH_adj_2 <- counts_alvarez[,36041:39995]
+dim(counts_NASH_adj_2)  # Should match the length of barcodes_NASH_adj_2
+dim(barcodes_NASH_adj_2)
+# Create gene-cell matrices 
+NASH_adj_1 <- CreateSeuratObject(counts = counts_NASH_adj_1, project = "Alvarez_NASH_adj_1")
+NASH_adj_2 <- CreateSeuratObject(counts = counts_NASH_adj_2, project = "Alvarez_NASH_adj_2")
+# Preprocess data
+NASH_adj_1 <- subset(NASH_adj_1, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+NASH_adj_1 <- NormalizeData(NASH_adj_1)
+NASH_adj_1 <- FindVariableFeatures(NASH_adj_1)
+NASH_adj_2 <- subset(NASH_adj_2, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+NASH_adj_2 <- NormalizeData(NASH_adj_2)
+NASH_adj_2 <- FindVariableFeatures(NASH_adj_2)
+# Integrate data to create single object for NASH liver
+list_of_datasets <- list(NASH_adj_1, NASH_adj_2)
+anchors <- FindIntegrationAnchors(object.list = list_of_datasets, dims = 1:25)
+integrated_data_nash_adjacent <- IntegrateData(anchorset = anchors, dims = 1:25)
+#save integrated object
+save(integrated_data_nash_adjacent, file = "Alvarez_nashAdjacent_integratedData.RData")
+
+#NAFLD liver condition_______________________________________________________________________________________________________________________________
+#from Filliol paper, data downloaded per patient, so just needs to be combined into single object
+#nafld sample 1
+features_nafld1 <- fread("Filliol_nafld1_features.tsv.gz", header = FALSE)
+barcodes_nafld1 <- fread("Filliol_nafld1_barcodes.tsv.gz", header = FALSE)
+counts_nafld1 <- readMM("Filliol_nafld1_matrix.mtx.gz")
+dimnames(counts_nafld1) <- list(as.character(features_nafld1$V1), as.character(barcodes_nafld1$V1))
+counts_nafld1 <- as(counts_nafld1, "CsparseMatrix")
+# Create a gene-cell matrix
+Filliol_nafld1 <- CreateSeuratObject(counts = counts_nafld1, project = "Filliol_nafld1")
+# Preprocess data
+Filliol_nafld1 <- subset(Filliol_nafld1, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+Filliol_nafld1 <- NormalizeData(Filliol_nafld1)
+Filliol_nafld1 <- FindVariableFeatures(Filliol_nafld1)
+#nafld sample 2
+features_nafld2 <- fread("Filliol_nafld2_features.tsv.gz", header = FALSE)
+barcodes_nafld2 <- fread("Filliol_nafld2_barcodes.tsv.gz", header = FALSE)
+counts_nafld2 <- readMM("Filliol_nafld2_matrix.mtx.gz")
+dimnames(counts_nafld2) <- list(as.character(features_nafld2$V1), as.character(barcodes_nafld2$V1))
+counts_nafld2 <- as(counts_nafld2, "CsparseMatrix")
+# Create a gene-cell matrix
+Filliol_nafld2 <- CreateSeuratObject(counts = counts_nafld2, project = "Filliol_nafld2")
+# Preprocess data
+Filliol_nafld2 <- subset(Filliol_nafld2, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+Filliol_nafld2 <- NormalizeData(Filliol_nafld2)
+Filliol_nafld2 <- FindVariableFeatures(Filliol_nafld2)
+# Integrate data to create single object for NAFLD liver
+list_of_datasets <- list(Filliol_nafld1, Filliol_nafld2)
+anchors <- FindIntegrationAnchors(object.list = list_of_datasets, dims = 1:25)
+integrated_data_nafld <- IntegrateData(anchorset = anchors, dims = 1:25)
+#save integrated object
+save(integrated_data_nafld, file = "Filliol_NAFLD_integrated_data.RData")
+
+#Healthy liver condition_______________________________________________________________________________________________________________________________
+#from Filliol paper, data downloaded per patient, so just needs to be combined into single object
+#Healthy sample 1
+features_healthy1 <- fread("Filliol_healthy1_features.tsv.gz", header = FALSE)
+barcodes_healthy1 <- fread("Filliol_healthy1_barcodes.tsv.gz", header = FALSE)
+counts_healthy1 <- readMM("Filliol_healthy1_matrix.mtx.gz")
+dimnames(counts_healthy1) <- list(as.character(features_healthy1$V1), as.character(barcodes_healthy1$V1))
+counts_healthy1 <- as(counts_healthy1, "CsparseMatrix")
+# Create a gene-cell matrix
+Filliol_healthy1 <- CreateSeuratObject(counts = counts_healthy1, project = "Filliol_Healthy1")
+# Preprocess data
+Filliol_healthy1 <- subset(Filliol_healthy1, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+Filliol_healthy1 <- NormalizeData(Filliol_healthy1)
+Filliol_healthy1 <- FindVariableFeatures(Filliol_healthy1)
+#Healthy sample 2
+features_healthy2 <- fread("Filliol_healthy2_features.tsv.gz", header = FALSE)
+barcodes_healthy2 <- fread("Filliol_healthy2_barcodes.tsv.gz", header = FALSE)
+counts_healthy2 <- readMM("Filliol_healthy2_matrix.mtx.gz")
+dimnames(counts_healthy2) <- list(as.character(features_healthy2$V1), as.character(barcodes_healthy2$V1))
+counts_healthy2 <- as(counts_healthy2, "CsparseMatrix")
+# Create a gene-cell matrix
+Filliol_healthy2 <- CreateSeuratObject(counts = counts_healthy2, project = "Filliol_Healthy2")
+# Preprocess data
+Filliol_healthy2 <- subset(Filliol_healthy2, subset = nFeature_RNA > 150 & nFeature_RNA < 3000)
+Filliol_healthy2 <- NormalizeData(Filliol_healthy2)
+Filliol_healthy2 <- FindVariableFeatures(Filliol_healthy2)
+# Integrate data to create single object for Healthy liver
+list_of_datasets <- list(Filliol_healthy1, Filliol_healthy2)
+anchors <- FindIntegrationAnchors(object.list = list_of_datasets, dims = 1:25)
+integrated_data_healthy <- IntegrateData(anchorset = anchors, dims = 1:25)
+#save integrated object 
+save(integrated_data_healthy, file = "Filliol_healthyintegrated_data.RData")
+
+
+
+
+
+
+#SECTION 2. EXTENDED FIGURES 12D AND 3I - ACLY AND SLC27A2 EXPRESSION________________________________________________________________________________
+#____________________________________________________________________________________________________________________________________________________
+
+#Healthy liver condition________________________________________________________________________________________
+#load healthy human liver dataset
+load("Filliol_healthyintegrated_data.RData")
+# Scale the integrated data 
+integrated_data_healthy <- ScaleData(integrated_data_healthy)
+integrated_data_healthy <- RunPCA(integrated_data_healthy)
+# Find neighbors and clusters
+integrated_data_healthy <- FindNeighbors(integrated_data_healthy, dims = 1:25)
+integrated_data_healthy <- FindClusters(integrated_data_healthy, resolution = 1.0)
+integrated_data_healthy <- RunUMAP(integrated_data_healthy, dims = 1:25)
+DimPlot(integrated_data_healthy, reduction = "umap", label = TRUE, pt.size = 1)
+DefaultAssay(integrated_data_healthy) <- "RNA"
+#SLC27A2
+FeaturePlot(integrated_data_healthy, features = c("ENSG00000140284"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("SLC27A2 Expression")
+#ACLY
+FeaturePlot(integrated_data_healthy, features = c("ENSG00000131473"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ACLY Expression")
+#whole condition data extraction
+# Fetch expression data for SLC27A2, ACLY
+expression_data <- FetchData(integrated_data_healthy, vars = c("ENSG00000140284", "ENSG00000131473"))
+# Get total number of cells
+total_cells <- nrow(expression_data)
+# Calculate number of cells expressing SLC27A2, ACLY(non-zero expression)
+expressing_slc27a2 <- sum(expression_data$ENSG00000140284 > 0)
+expressing_acly <- sum(expression_data$ENSG00000131473 > 0)
+# Calculate mean expression of each gene across all cells, including those with zero expression
+mean_slc27a2 <- mean(expression_data$ENSG00000140284)
+mean_acly <- mean(expression_data$ENSG00000131473)
+# Create a dataframe to store these results
+df_total <- data.frame(
+  total_cells = total_cells,
+  expressing_slc27a2 = expressing_slc27a2,
+  mean_slc27a2 = mean_slc27a2,
+  expressing_acly = expressing_acly,
+  mean_acly = mean_acly
+)
+View(df_total)
+
+#NAFLD liver condition________________________________________________________________________________________
+#load nafld human liver dataset
+load("Filliol_NAFLD_integrated_data.RData")
+# Scale the integrated data
+integrated_data_nafld <- ScaleData(integrated_data_nafld)
+integrated_data_nafld <- RunPCA(integrated_data_nafld)
+# Find neighbors and clusters
+integrated_data_nafld <- FindNeighbors(integrated_data_nafld, dims = 1:25)
+integrated_data_nafld <- FindClusters(integrated_data_nafld, resolution = 1.0)
+integrated_data_nafld <- RunUMAP(integrated_data_nafld, dims = 1:25)
+DimPlot(integrated_data_nafld, reduction = "umap", label = TRUE, pt.size = 1)
+DefaultAssay(integrated_data_nafld) <- "RNA"
+#SLC27A2
+FeaturePlot(integrated_data_nafld, features = c("ENSG00000140284"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("SLC27A2 Expression")
+#ACLY
+FeaturePlot(integrated_data_nafld, features = c("ENSG00000131473"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ACLY Expression")
+#whole condition data extraction
+# Fetch expression data for SLC27A2, ACLY
+expression_data <- FetchData(integrated_data_nafld, vars = c("ENSG00000140284", "ENSG00000131473"))
+# Get total number of cells
+total_cells <- nrow(expression_data)
+# Calculate number of cells expressing SLC27A2, ACLY (non-zero expression)
+expressing_slc27a2 <- sum(expression_data$ENSG00000140284 > 0)
+expressing_acly <- sum(expression_data$ENSG00000131473 > 0)
+# Calculate mean expression of each gene across all cells, including those with zero expression
+mean_slc27a2 <- mean(expression_data$ENSG00000140284)
+mean_acly <- mean(expression_data$ENSG00000131473)
+# Create a dataframe to store these results
+df_total <- data.frame(
+  total_cells = total_cells,
+  expressing_slc27a2 = expressing_slc27a2,
+  mean_slc27a2 = mean_slc27a2,
+  expressing_acly = expressing_acly,
+  mean_acly = mean_acly
+)
+View(df_total)
+
+#NASH liver condition________________________________________________________________________________________
+#load nash adjacent human liver dataset
+load("Alvarez_nashAdjacent_integratedData.RData")
+# Scale the integrated data 
+integrated_data_nash_adjacent <- ScaleData(integrated_data_nash_adjacent)
+integrated_data_nash_adjacent <- RunPCA(integrated_data_nash_adjacent)
+# Find neighbors and clusters
+integrated_data_nash_adjacent <- FindNeighbors(integrated_data_nash_adjacent, dims = 1:25)
+integrated_data_nash_adjacent <- FindClusters(integrated_data_nash_adjacent, resolution = 1.0)
+integrated_data_nash_adjacent <- RunUMAP(integrated_data_nash_adjacent, dims = 1:25)
+DimPlot(integrated_data_nash_adjacent, reduction = "umap", label = TRUE, pt.size = 1)
+DefaultAssay(integrated_data_nash_adjacent) <- "RNA"
+#SLC27A2
+FeaturePlot(integrated_data_nash_adjacent, features = c("ENSG00000140284.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("SLC27A2 Expression")
+#ACLY
+FeaturePlot(integrated_data_nash_adjacent, features = c("ENSG00000131473.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ACLY Expression")
+#whole condition data extraction
+# Fetch expression data for SLC27A2, ACLY
+expression_data <- FetchData(integrated_data_nash_adjacent, vars = c("ENSG00000140284.10","ENSG00000131473.16"))
+# Get total number of cells
+total_cells <- nrow(expression_data)
+# Calculate number of cells expressing SLC27A2, ACLY (non-zero expression)
+expressing_slc27a2 <- sum(expression_data$ENSG00000140284.10 > 0)
+expressing_acly <- sum(expression_data$ENSG00000131473.16 > 0)
+# Calculate mean expression of each gene across all cells, including those with zero expression
+mean_slc27a2 <- mean(expression_data$ENSG00000140284.10)
+mean_acly <- mean(expression_data$ENSG00000131473.16)
+# Create a dataframe to store these results
+df_total <- data.frame(
+  total_cells = total_cells,
+  expressing_slc27a2 = expressing_slc27a2,
+  mean_slc27a2 = mean_slc27a2,
+  expressing_acly = expressing_acly,
+  mean_acly = mean_acly
+)
+View(df_total)
+
+#NASH tumor condition___________________________________________________________________________________________
+#load nash tumor human dataset
+load("Alvarez_nashTumor_integratedData.RData")
+# Scale the integrated data 
+integrated_data_nash_tumor <- ScaleData(integrated_data_nash_tumor)
+integrated_data_nash_tumor <- RunPCA(integrated_data_nash_tumor)
+# Find neighbors and clusters
+integrated_data_nash_tumor <- FindNeighbors(integrated_data_nash_tumor, dims = 1:25)
+integrated_data_nash_tumor <- FindClusters(integrated_data_nash_tumor, resolution = 1.0)
+integrated_data_nash_tumor <- RunUMAP(integrated_data_nash_tumor, dims = 1:25)
+DimPlot(integrated_data_nash_tumor, reduction = "umap", label = TRUE, pt.size = 1)
+DefaultAssay(integrated_data_nash_tumor) <- "RNA"
+#SLC27A2
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000140284.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("SLC27A2 Expression")
+#ACLY
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000131473.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ACLY Expression")
+#whole condition data extraction
+# Fetch expression data for SLC27A2, ACLY
+expression_data <- FetchData(integrated_data_nash_tumor, vars = c("ENSG00000140284.10","ENSG00000131473.16"))
+# Get total number of cells
+total_cells <- nrow(expression_data)
+# Calculate number of cells expressing SLC27A2, ACLY (non-zero expression)
+expressing_slc27a2 <- sum(expression_data$ENSG00000140284.10 > 0)
+expressing_acly <- sum(expression_data$ENSG00000131473.16 > 0)
+# Calculate mean expression of each gene across all cells, including those with zero expression
+mean_slc27a2 <- mean(expression_data$ENSG00000140284.10)
+mean_acly <- mean(expression_data$ENSG00000131473.16)
+# Create a dataframe to store these results
+df_total <- data.frame(
+  total_cells = total_cells,
+  expressing_slc27a2 = expressing_slc27a2,
+  mean_slc27a2 = mean_slc27a2,
+  expressing_acly = expressing_acly,
+  mean_acly = mean_acly
+)
+View(df_total)
+
+#PLOT THE SLC27A2 AND ACLY DATA_____________________________________________________________________________________________________________
+# Load necessary libraries
+library(ggplot2)
+data_by_condition <- data.frame(
+  Condition = c("Healthy Liver", "NAFLD Liver", "NASH Liver", "NASH Tumor"),
+  mean_slc27a2 = c(0.1897947, 0.7457557, 1.04268, 0.5401587),
+  mean_acly = c(0.02142406, 0.07185394, 0.06145749, 0.095792)
+)
+ggplot(data_by_condition, aes(x = Condition, y = mean_slc27a2)) +
+  geom_bar(stat = "identity", width = 0.7, fill = "salmon", color = "black") +
+  theme_minimal() +
+  labs(title = "SLC27A2", x = "", y = "") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 20, face = "bold.italic"),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14)
+  )
+ggplot(data_by_condition, aes(x = Condition, y = mean_acly)) +
+  geom_bar(stat = "identity", width = 0.7, fill = "salmon", color = "black") +
+  theme_minimal() +
+  labs(title = "ACLY", x = "", y = "") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 20, face = "bold.italic"),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14)
+  )
+
+
+
+
+
+#SECTION 3. EXTENDED FIGURE 1T - ACLY ACROSS CELL TYPES (NASH TUM)_____________________________________________________________________________________
+#___________________________________________________________________________________________________________________________________________________
+#load MASH-HCC integrated object
+load("Alvarez_nashTumor_integratedData.RData")
+# Scale the integrated data
+integrated_data_nash_tumor <- ScaleData(integrated_data_nash_tumor)
+integrated_data_nash_tumor <- RunPCA(integrated_data_nash_tumor)
+# Find neighbors and clusters
+integrated_data_nash_tumor <- FindNeighbors(integrated_data_nash_tumor, dims = 1:25)
+integrated_data_nash_tumor <- FindClusters(integrated_data_nash_tumor, resolution = 1.0)
+#check UMAP
+integrated_data_nash_tumor <- RunUMAP(integrated_data_nash_tumor, dims = 1:25)
+DimPlot(integrated_data_nash_tumor, reduction = "umap", label = TRUE, pt.size = 1)
+#check TSNE
+integrated_data_nash_tumor <- RunTSNE(integrated_data_nash_tumor, dims = 1:25)
+DimPlot(integrated_data_nash_tumor, reduction = "tsne", label = TRUE, pt.size = 1)
+DefaultAssay(integrated_data_nash_tumor) <- "RNA"
+View(as.data.frame(rownames(integrated_data_nash_tumor)))
+#finding HSCs
+#Dcn
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000011465.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Dcn Expression")
+#Hgf
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000019991.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Hgf Expression")
+#Reln
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000189056.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Reln Expression")
+#Pdgfrb
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000113721.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Pdgfrb Expression")
+#Col3a1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000168542.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Col3a1 Expression")
+#Acta2
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000107796.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Acta2 Expression")
+#cluster 14 is HSCs
+#finding tumor cells
+#Gpc3
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000147257.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Gpc3 Expression")
+#Afp
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000081051.7"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Afp Expression")
+#Epcam
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000119888.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Epcam Expression")
+#Vim
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000026025.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Vim Expression")
+#Prom1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000007062.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Prom1 Expression")
+#Hspa1a
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000204389.9"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Hspa1a Expression")
+#Glul
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000135821.17"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Glul Expression")
+#clusters 0,8,13 are tumor cells 
+#finding T cells
+#Cd3e
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000198851.9"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd3e Expression")
+#Cd4
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000010610.9"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd4 Expression")
+#Cd8a
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000153563.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd8a Expression")
+#Cd45 (leukocytes)
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000081237.18"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd45 Expression")
+#Inconclusive
+#finding B cells
+#Cd19
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000177455.12"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd19 Expression")
+#Ms4a1 (Cd20)
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000156738.17"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Ms4a1 Expression")
+#Cd22
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000012124.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd22 Expression")
+#Cd79a
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000105369.9"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd79a Expression")
+#Cd79b
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000007372.21"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd79b Expression")
+#Inconclusive
+#finding Kuppfer cells/macrophages
+#Cd68
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000129226.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd68 Expression")
+#Marco
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000019169.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Marco Expression")
+#Clec4f
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000152672.7"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Clec4f Expression")
+#clusters 6, 7, 19,15,4 are leukocytes
+#finding endothelial cells
+#Pecam1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000253368.3"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Pecam1 Expression")
+#Kdr
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000128052.8"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Kdr Expression")
+#Cdh5
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000163599.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cdh5 Expression")
+#Lyve1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000133800.8"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Lyve1 Expression")
+#Vwf
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000110799.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Vwf Expression")
+#Eng (Cd105)
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000104884.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Eng Expression")
+#Icam1 (Cd54)
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000090339.8"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Icam1 Expression")
+#Tie1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000120156.20"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Tie1 Expression")
+#Tie2 (Tek)
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000120159.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Tie2 Expression")
+#Cd34
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000174059.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd34 Expression")
+#Sele
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000007908.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Sele Expression")
+#Prox1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000105953.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Prox1 Expression")
+#Nrp1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000099250.17"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Nrp1 Expression")
+#Cldn5
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000119688.20"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cldn5 Expression")
+#clusters 2,11,12,18
+#finding cholangiocytes
+#Krt7
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000135404.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Krt7 Expression")
+#Krt19
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000171345.13"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Krt19 Expression")
+#Epcam
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000119888.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Epcam Expression")
+#Sox9
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000125398.5"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Sox9 Expression")
+#Hnf1b
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000123178.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Hnf1b Expression")
+#Cftr
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000001626.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cftr Expression")
+#Anxa4
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000100749.7"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Anxa4 Expression")
+#Slc4a2 (Ae2)
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000174903.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Slc4a2 Expression")
+#Muc1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000185499.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Muc1 Expression")
+#Ostb
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000170476.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Ostb Expression")
+#Cdh1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000039068.18"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cdh1 Expression")
+#cluster 5 
+#finding fibroblasts
+#Pdgfra
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000134853.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Pdgfra Expression")
+#Vim
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000026025.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Vim Expression")
+#FSP1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000196154.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("FSP1 Expression")
+#FN1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000115414.18"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("FN1 Expression")
+#CD90
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000174059.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Cd90 Expression")
+#DES
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000175084.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("DES Expression")
+#P4HB
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000185624.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("P4HB Expression")
+#DDR2
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000162733.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("DDR2 Expression")
+#SPARC
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000113140.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("SPARC Expression")
+#TNC
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000041982.15"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("TNC Expression")
+#cluster 16 is fibroblasts
+#finding hepatocytes
+#Alb
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000163631.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Alb Expression")
+#Hnf4a
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000101076.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Hnf4a Expression")
+#Uox
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000230795.3"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Uox Expression")
+#Apoc3
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000110245.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("Apoc3 Expression")
+#CYP3A4
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000160868.14"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("CYP3A4 Expression")
+#ASGR1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000141505.11"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ASGR1 Expression")
+#CYP2E1
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000130649.9"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("CYP2E1 Expression")
+#TTR
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000118271.9"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("TTR Expression")
+#KRT18
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000111057.10"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("KRT18 Expression")
+#OTC
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000122679.8"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("OTC Expression")
+#GLUL
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000135821.17"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("GLUL Expression")
+#ALDOB
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000136872.17"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ALDOB Expression")
+#clusters 1,9,3,10 are heps
+
+#assign manual annotations
+# Hepatic stellate cells correspond to cluster 14
+#fibroblasts cluster 16
+# Tumor cells correspond to cluster 0,8,13
+# Leukocytes cells correspond to cluster 6,7,19,15,4
+# Endothelial cells correspond to cluster 2,11,12,18
+# Cholangiocytes correspond to cluster 5
+# Hepatocytes correspond to 1,9,3,10
+
+# Initialize a vector with default cell type 'Unknown'
+cell_types <- rep("Unknown", length(integrated_data_nash_tumor$seurat_clusters))
+Tumor_clusters <- c(0,8,13)
+leukocyte_clusters <- c(6,7,19,15,4)
+endothelial_clusters <- c(2,11,12,18)
+hepatocyte_clusters <- c(1,9,3,10)
+# Assign cell types based on cluster numbers
+cell_types[integrated_data_nash_tumor$seurat_clusters == 14] <- "Hepatic Stellate Cells"
+cell_types[integrated_data_nash_tumor$seurat_clusters == 16] <- "Fibroblasts"
+cell_types[integrated_data_nash_tumor$seurat_clusters %in% Tumor_clusters] <- "Tumor Cells"
+cell_types[integrated_data_nash_tumor$seurat_clusters %in% leukocyte_clusters] <- "Leukocytes"
+cell_types[integrated_data_nash_tumor$seurat_clusters %in% endothelial_clusters] <- "Endothelial Cells"
+cell_types[integrated_data_nash_tumor$seurat_clusters == 5] <- "Cholangiocytes"
+cell_types[integrated_data_nash_tumor$seurat_clusters %in% hepatocyte_clusters] <- "Hepatocytes"
+# Add the cell type annotations as a new column in the metadata
+integrated_data_nash_tumor$cell_type <- cell_types
+#Plot UMAP with cell type annotations
+DimPlot(integrated_data_nash_tumor, reduction = "umap", group.by = "cell_type", label = FALSE, pt.size = 1) +
+  ggtitle("UMAP with Manually Annotated Cell Types") +
+  theme_minimal() +
+  theme(legend.text = element_text(size = 14))
+#create a summary data frame
+total_cells <- ncol(integrated_data_nash_tumor)
+#Calculate total cells for each cell type
+cell_type_summary <- integrated_data_nash_tumor@meta.data %>%
+  group_by(cell_type) %>%
+  summarise(total_cells = n()) %>%
+  ungroup()
+View(cell_type_summary)
+#ACLY
+FeaturePlot(integrated_data_nash_tumor, features = c("ENSG00000131473.16"), cols = c("lightgrey", "blue"),
+            pt.size = 1) + ggtitle("ACLY Expression")
+# Specify the gene of interest (ACLY)
+gene_of_interest <- "ENSG00000131473.16"
+# Fetch the ACLY expression data along with the cell type metadata
+acly_expression_data <- FetchData(integrated_data_nash_tumor, vars = c(gene_of_interest, "cell_type"))
+# Rename the column for clarity (ACLY expression)
+colnames(acly_expression_data)[1] <- "ACLY_expression"
+# Calculate the average ACLY expression for each cell type
+acly_summary <- acly_expression_data %>%
+  group_by(cell_type) %>%
+  summarise(average_ACLY_expression = mean(ACLY_expression)) %>%
+  ungroup()
+# Display the summary
+View(acly_summary)
+acly_for_chart <- acly_summary[-8,]
+acly_for_chart$cell_type <- factor(acly_for_chart$cell_type, 
+                                   levels = c("Hepatocytes", "Hepatic Stellate Cells", 
+                                              "Fibroblasts", "Leukocytes", 
+                                              "Cholangiocytes", "Endothelial Cells", 
+                                              "Tumor Cells"))
+ggplot(acly_for_chart, aes(x = cell_type, y = average_ACLY_expression)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.75) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 12, angle = 45, hjust = 1),  
+    axis.text.y = element_text(size = 12),  
+    axis.title.x = element_blank(),  
+    axis.title.y = element_blank()   
+  )
+
+
+
+
+
+#SECTION 4. CREATING SEURAT OBJECTS FOR MOUSE DATA__________________________________________________________________________________________________
+#___________________________________________________________________________________________________________________________________________________
+
+#TN MASH-HCC condition_______________________________________________________________________________________________________________________________
+#load the DEN_T and DEN_V samples
+DEN_T_470.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_T_470_sample.h5")
+DEN_T_483.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_T_483_sample.h5")
+DEN_T_516.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_T_516_sample.h5")
+DEN_V_451.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_V_451_sample.h5")
+DEN_V_487.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_V_487_sample.h5")
+DEN_V_508.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_V_508_sample.h5")
+#create seurat objects
+DEN_T_470 <- CreateSeuratObject(counts = DEN_T_470.data, project = "DEN_T_470")
+DEN_T_483 <- CreateSeuratObject(counts = DEN_T_483.data, project = "DEN_T_483")
+DEN_T_516 <- CreateSeuratObject(counts = DEN_T_516.data, project = "DEN_T_516")
+DEN_V_451 <- CreateSeuratObject(counts = DEN_V_451.data, project = "DEN_V_451")
+DEN_V_487 <- CreateSeuratObject(counts = DEN_V_487.data, project = "DEN_V_487")
+DEN_V_508 <- CreateSeuratObject(counts = DEN_V_508.data, project = "DEN_V_508")
+# Preprocess data
+DEN_T_470 <- NormalizeData(DEN_T_470)
+DEN_T_470 <- FindVariableFeatures(DEN_T_470)
+DEN_T_483 <- NormalizeData(DEN_T_483)
+DEN_T_483 <- FindVariableFeatures(DEN_T_483)
+DEN_T_516 <- NormalizeData(DEN_T_516)
+DEN_T_516 <- FindVariableFeatures(DEN_T_516)
+DEN_V_451 <- NormalizeData(DEN_V_451)
+DEN_V_451 <- FindVariableFeatures(DEN_V_451)
+DEN_V_487 <- NormalizeData(DEN_V_487)
+DEN_V_487 <- FindVariableFeatures(DEN_V_487)
+DEN_V_508 <- NormalizeData(DEN_V_508)
+DEN_V_508 <- FindVariableFeatures(DEN_V_508)
+# find integration anchors
+DEN_Group_noC_samples_list <- list(DEN_T_470,DEN_T_483,DEN_T_516,DEN_V_451,DEN_V_487,DEN_V_508)
+#remove all objects but sample list
+ls()
+rm("list objects to be removed","comma delimited")
+anchors_DEN_Group_noC <- FindIntegrationAnchors(object.list = DEN_Group_noC_samples_list, dims = 1:25)
+#save integration anchors so they don't have to be recomputed (took 30min)
+save(anchors_DEN_Group_noC, file = "anchors_DEN_Group_noC_25dims.RData")
+
+#export to terminal to run integration step
+#export R_MAX_VSIZE=32GB
+#R
+#Sys.getenv("R_MAX_VSIZE") (should return 32GB)
+#library(Seurat)
+#library(Matrix)
+#load("anchors_DEN_Group_noC_25dims.RData")
+#integrated_DEN_noC <- IntegrateData(anchorset = anchors_DEN_Group_noC, dims = 1:25)
+#save_path <- "integrated_DEN_noC.RData"
+#save(integrated_DEN_noC, file = save_path)
+
+# Scale the integrated data
+integrated_DEN_noC <- ScaleData(integrated_DEN_noC)
+integrated_DEN_noC <- RunPCA(integrated_DEN_noC)
+# Find neighbors and clusters
+integrated_DEN_noC <- FindNeighbors(integrated_DEN_noC, dims = 1:25)
+integrated_DEN_noC <- FindClusters(integrated_DEN_noC, resolution = 1.0)
+integrated_DEN_noC <- RunUMAP(integrated_DEN_noC, dims = 1:25)
+DimPlot(integrated_DEN_noC, reduction = "umap", label = TRUE, pt.size = 1)
+# Plot UMAP colored by sample
+DimPlot(integrated_DEN_noC, reduction = "umap", group.by = "orig.ident", label = FALSE, pt.size = 1)
+# Plot UMAP colored by group
+# Assign group information
+integrated_DEN_noC$group <- ifelse(integrated_DEN_noC$orig.ident %in% c("DEN_T_470", "DEN_T_483", "DEN_T_516"), "DEN_T", "DEN_V")
+DimPlot(integrated_DEN_noC, reduction = "umap", group.by = "group", label = FALSE, pt.size = 0.85) +
+  scale_color_manual(values = c("DEN_T" = "blue", "DEN_V" = "red")) +
+  labs(title = "UMAP of Integrated DEN_T and DEN_V Samples")
+table(integrated_DEN_noC$group)
+
+#FAT MASH-HCC condition_______________________________________________________________________________________________________________________________
+#load the CCl4_T and CCl4_V samples
+CCl4_T_1.data <- Read10X_h5("Feature:Barcode Matrix (sample aka filtered)/CCl4_T_1_sample.h5")
+CCl4_T_4.data <- Read10X_h5("Feature:Barcode Matrix (sample aka filtered)/CCl4_T_4_sample.h5")
+CCl4_T_83.data <- Read10X_h5("Feature:Barcode Matrix (sample aka filtered)/CCl4_T_83_sample.h5")
+CCl4_V_45.data <- Read10X_h5("Feature:Barcode Matrix (sample)/CCl4_V_45_sample.h5")
+CCl4_V_66.data <- Read10X_h5("Feature:Barcode Matrix (sample)/CCl4_V_66_sample.h5")
+CCl4_V_67.data <- Read10X_h5("Feature:Barcode Matrix (sample)/CCl4_V_67_sample.h5")
+
+#create seurat objects
+CCl4_T_1 <- CreateSeuratObject(counts = CCl4_T_1.data, project = "CCl4_T_1")
+CCl4_T_4 <- CreateSeuratObject(counts = CCl4_T_4.data, project = "CCl4_T_4")
+CCl4_T_83 <- CreateSeuratObject(counts = CCl4_T_83.data, project = "CCl4_T_83")
+CCl4_V_45 <- CreateSeuratObject(counts = CCl4_V_45.data, project = "CCl4_V_45")
+CCl4_V_66 <- CreateSeuratObject(counts = CCl4_V_66.data, project = "CCl4_V_66")
+CCl4_V_67 <- CreateSeuratObject(counts = CCl4_V_67.data, project = "CCl4_V_67")
+
+# Preprocess data
+CCl4_T_1 <- NormalizeData(CCl4_T_1)
+CCl4_T_1 <- FindVariableFeatures(CCl4_T_1)
+CCl4_T_4 <- NormalizeData(CCl4_T_4)
+CCl4_T_4 <- FindVariableFeatures(CCl4_T_4)
+CCl4_T_83 <- NormalizeData(CCl4_T_83)
+CCl4_T_83 <- FindVariableFeatures(CCl4_T_83)
+CCl4_V_45 <- NormalizeData(CCl4_V_45)
+CCl4_V_45 <- FindVariableFeatures(CCl4_V_45)
+CCl4_V_66 <- NormalizeData(CCl4_V_66)
+CCl4_V_66 <- FindVariableFeatures(CCl4_V_66)
+CCl4_V_67 <- NormalizeData(CCl4_V_67)
+CCl4_V_67 <- FindVariableFeatures(CCl4_V_67)
+# find integration anchors
+CCl4_Group_noC_samples_list <- list(CCl4_T_1,CCl4_T_4,CCl4_T_83,CCl4_V_45,CCl4_V_66,CCl4_V_67)
+#remove all objects but sample list
+ls()
+rm("plot_gene_expression")
+anchors_CCl4_Group_noC <- FindIntegrationAnchors(object.list = CCl4_Group_noC_samples_list, dims = 1:25)
+#save integration anchors so they don't have to be recomputed (took 30min)
+save(anchors_CCl4_Group_noC, file = "anchors_CCl4_Group_noC_25dims.RData")
+
+#export to terminal to run integration step
+#export R_MAX_VSIZE=32GB
+#R
+#Sys.getenv("R_MAX_VSIZE") (should return 32GB)
+#library(Seurat)
+#library(Matrix)
+#load("anchors_CCl4_Group_noC_25dims.RData")
+#integrated_CCl4_noC <- IntegrateData(anchorset = anchors_CCl4_Group_noC, dims = 1:25)
+#save_path <- "integrated_CCl4_noC.RData"
+#save(integrated_CCl4_noC, file = save_path)
+
+#load integrated object
+load("integrated_CCl4_noC.RData")
+# Scale the integrated data
+integrated_CCl4_noC <- ScaleData(integrated_CCl4_noC)
+integrated_CCl4_noC <- RunPCA(integrated_CCl4_noC)
+
+
+
+
+#SECTION 5. EXTENDED FIGURE 1S - ACLY ACROSS CELL TYPES (TN MASH-HCC MOUSE MODEL)___________________________________________________________________
+#___________________________________________________________________________________________________________________________________________________
+#load integrated object
+load("integrated_DEN_noC.RData")
+#Annotation via GPT4
+markers_DEN_Group_noC <- FindAllMarkers(integrated_DEN_noC, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+View(markers_DEN_Group_noC)
+#export marker genes for annotation via GPT4
+write.table(markers_DEN_Group_noC, "DEN_Group_noC_Markers.txt", sep = "\t")
+DefaultAssay(integrated_DEN_noC) <- "integrated"
+# Initialize a vector with default cell type 'Unknown'
+cell_types <- rep("Unknown", length(integrated_DEN_noC$seurat_clusters))
+# manual cell type annotation based on GPT4 suggestions
+cell_types[integrated_DEN_noC$seurat_clusters == 9] <- "Hepatic Stellate Cells"
+cell_types[integrated_DEN_noC$seurat_clusters == 15] <- "Tumor Cells"
+cell_types[integrated_DEN_noC$seurat_clusters == 7] <- "Mixed Immune Cells"
+cell_types[integrated_DEN_noC$seurat_clusters == 14] <- "Kupffer Cells and Macrophages"
+cell_types[integrated_DEN_noC$seurat_clusters == 4] <- "Endothelial Cells"
+cell_types[integrated_DEN_noC$seurat_clusters == 16] <- "Cholangiocytes"
+cell_types[integrated_DEN_noC$seurat_clusters %in% hepatocyte_clusters] <- "Hepatocytes"
+# Add the cell type annotations as a new column in the metadata
+integrated_DEN_noC$cell_type <- cell_types
+#Plot UMAP with cell type annotations
+DimPlot(integrated_DEN_noC, reduction = "umap", group.by = "cell_type", label = FALSE, pt.size = 1) +
+  ggtitle("UMAP with Manually Annotated Cell Types") +
+  theme_minimal() +
+  theme(legend.text = element_text(size = 14))
+
+#find expressions in purely T cells (all cd3e-expressing) and purely B cells (all cd19 expressing)
+# Fetch Cd19 and Cd3e expression data
+expression_data <- FetchData(integrated_DEN_noC, vars = c("Cd19", "Cd3e"))
+# Add expression data to the Seurat object's metadata
+integrated_DEN_noC$Cd19_expression <- expression_data$Cd19
+integrated_DEN_noC$Cd3e_expression <- expression_data$Cd3e
+# Create logical columns indicating B and T cells
+integrated_DEN_noC$B_cell <- integrated_DEN_noC$Cd19_expression > 0
+integrated_DEN_noC$T_cell <- integrated_DEN_noC$Cd3e_expression > 0
+# Create a data frame with metadata
+meta_data <- integrated_DEN_noC@meta.data
+# Extract metadata and the Acly expression column into a data frame
+metadata <- integrated_DEN_noC@meta.data
+metadata$Acly_expression <- FetchData(integrated_DEN_noC, vars = "Acly")$Acly
+# Update the cell_type metadata to classify T cells and B cells properly
+metadata <- metadata %>%
+  mutate(cell_type = case_when(
+    B_cell == TRUE ~ "B Cells",  # Reclassify B cells
+    T_cell == TRUE ~ "T Cells",  # Reclassify T cells
+    TRUE ~ cell_type  # Keep the original cell_type for other cells
+  ))
+# Apply the updated metadata back to the Seurat object
+integrated_DEN_noC@meta.data <- metadata
+# Now proceed with the same analysis as before:
+# Filter to only include DEN_V samples
+DEN_V_metadata <- metadata %>% filter(orig.ident %in% c("DEN_V_451", "DEN_V_487", "DEN_V_508"))
+# (1) Calculate the total number of cells in DEN_V samples
+total_cells_DEN_V <- nrow(DEN_V_metadata)
+print(paste("Total cells in DEN_V samples:", total_cells_DEN_V))
+# (2) Calculate the total number of cells per cell type across all DEN_V samples
+total_cells_per_cell_type_DEN_V <- DEN_V_metadata %>%
+  group_by(cell_type) %>%
+  summarize(total_cells = n())
+View(total_cells_per_cell_type_DEN_V)
+# (3) Calculate the total number of cells per DEN_V sample
+total_cells_per_sample_DEN_V <- DEN_V_metadata %>%
+  group_by(orig.ident) %>%
+  summarize(total_cells = n())
+View(total_cells_per_sample_DEN_V)
+# (4) Calculate the total number of cells per cell type in each DEN_V sample
+total_cells_per_cell_type_per_sample_DEN_V <- DEN_V_metadata %>%
+  group_by(orig.ident, cell_type) %>%
+  summarize(total_cells = n())
+View(total_cells_per_cell_type_per_sample_DEN_V)
+# (5) Calculate the mean Acly expression for each cell type across all DEN_V samples (pooled)
+mean_acly_all_DEN_V <- DEN_V_metadata %>%
+  group_by(cell_type) %>%
+  summarize(mean_Acly = mean(Acly_expression, na.rm = TRUE))
+View(mean_acly_all_DEN_V)
+#plot v1: all DEN_V
+library(ggplot2)
+# Create a data frame
+data <- data.frame(
+  Cell_Type = c("B Cells", "Cholangiocytes", "Endothelial Cells", "Hepatic Stellate Cells",
+                "Hepatocytes", "Kupffer Cells and Macrophages", "Mixed Immune Cells", "T Cells", "Tumor Cells"),
+  n_Cells = c(143, 326, 1277, 839, 12737, 608, 896, 77, 667),
+  mean_Acly = c(0.9487066, 1.3620373, 0.8057888, 0.7229657, 0.9299316, 0.8112012, 0.8913509, 0.9659487, 1.0973596)
+)
+# Define the order of the cell types
+data$Cell_Type <- factor(data$Cell_Type, levels = c("Hepatocytes", "Hepatic Stellate Cells", "Kupffer Cells and Macrophages",
+                                                    "B Cells", "T Cells", "Mixed Immune Cells", "Cholangiocytes", "Endothelial Cells","Tumor Cells"))
+# Create the bar plot without geom_text and axis labels
+ggplot(data, aes(x = Cell_Type, y = mean_Acly)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black", width = 0.75) +
+  scale_y_continuous(limits = c(0, 1.5), breaks = c(0, 0.5, 1, 1.5), labels = c("0", "0.5", "1.0", "1.5")) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 12, angle = 45, hjust = 1),  
+    axis.text.y = element_text(size = 12),  
+    axis.title.x = element_blank(),  
+    axis.title.y = element_blank()   
+  )
+
+
+
+
+#SECTION 5. EXTENDED FIGURE 8D,8E,9O - B CELL GO (GENE ONTOLOGY) PATHWAY ANALYSIS - MOUSE MODELS____________________________________________________
+#___________________________________________________________________________________________________________________________________________________
+
+#TN MASH-HCC condition_______________________________________________________________________________________________________________________________
+# Identify B cells by expression of Cd19
+B_cells <- subset(integrated_DEN_noC, subset = Cd19 > 0)
+dim(B_cells) #473 B cells in this dataset
+B_cells <- JoinLayers(B_cells)
+DefaultAssay(B_cells) <- "RNA"
+# Reclustering B cells
+B_cells <- FindVariableFeatures(B_cells)
+B_cells <- ScaleData(B_cells)
+B_cells <- RunPCA(B_cells)
+B_cells <- FindNeighbors(B_cells, dims = 1:10)
+B_cells <- FindClusters(B_cells, resolution = 0.5)
+B_cells <- RunUMAP(B_cells, dims = 1:10)
+# Assign groups
+B_cells$group <- ifelse(B_cells$orig.ident %in% c("DEN_T_470", "DEN_T_483", "DEN_T_516"), "DEN_T", "DEN_V")
+# Plot UMAP
+DimPlot(B_cells, reduction = "umap", group.by = "group", label = FALSE, pt.size = 1)
+
+# Differential expression analysis
+DE_B_cells <- FindMarkers(B_cells, ident.1 = "DEN_T", ident.2 = "DEN_V", group.by = "group", assay = "RNA")
+# Display the top differentially expressed genes
+head(DE_B_cells)
+#export DE results
+write.table(DE_B_cells, "DEN_DE_Bcells.txt", sep = "\t")
+
+# Pathway analysis
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+#upregulated genes GO enrichment analysis
+# Subset the gene list to include only significantly differentially expressed genes (upregulated in DEN_T)
+significant_genes_ureg <- DE_B_cells[DE_B_cells$p_val_adj < 0.05 & abs(DE_B_cells$avg_log2FC) > 0.25 & 
+                                       DE_B_cells$avg_log2FC > 0, ]
+# Prepare the list of gene symbols
+gene_symbols_sig_ureg <- rownames(significant_genes_ureg)
+# Convert gene symbols to Entrez IDs
+entrez_ids_ureg <- bitr(gene_symbols_sig_ureg, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+# Perform GO enrichment analysis
+go_enrichment_ureg <- enrichGO(gene = entrez_ids_ureg$ENTREZID,
+                               OrgDb = org.Mm.eg.db,
+                               ont = "BP",          # Biological Process
+                               pAdjustMethod = "BH",
+                               pvalueCutoff = 0.05,
+                               qvalueCutoff = 0.05,
+                               readable = TRUE)
+View(as.data.frame(go_enrichment_ureg))
+GO_enrichment_ureg_results <- as.data.frame(go_enrichment_ureg)
+simplified_GO_enrichment_ureg <- simplify(go_enrichment_ureg, cutoff = 0.5, by = "p.adjust", select_fun = min)
+View(as.data.frame(simplified_GO_enrichment_ureg))
+write.table(GO_enrichment_ureg_results, "DEN_GO_enrichment_ureg_results.txt", sep = "\t")
+write.table(simplified_GO_enrichment_ureg, "simplified_DEN_GO_enrichment_ureg_results.txt", sep = "\t")
+barplot(simplified_GO_enrichment_ureg, showCategory = 20)
+
+#downregulated genes GO enrichment analysis
+# Subset the gene list to include only significantly differentially expressed genes (downregulated in DEN_T)
+significant_genes_dreg <- DE_B_cells[DE_B_cells$p_val_adj < 0.05 & abs(DE_B_cells$avg_log2FC) > 0.25 & 
+                                       DE_B_cells$avg_log2FC < 0, ]
+# Prepare the list of gene symbols
+gene_symbols_sig_dreg <- rownames(significant_genes_dreg)
+# Convert gene symbols to Entrez IDs
+entrez_ids_dreg <- bitr(gene_symbols_sig_dreg, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+# Perform GO enrichment analysis
+go_enrichment_dreg <- enrichGO(gene = entrez_ids_dreg$ENTREZID,
+                               OrgDb = org.Mm.eg.db,
+                               ont = "BP",          # Biological Process
+                               pAdjustMethod = "BH",
+                               pvalueCutoff = 0.05,
+                               qvalueCutoff = 0.05,
+                               readable = TRUE)
+View(as.data.frame(go_enrichment_dreg))
+GO_enrichment_dreg_results <- as.data.frame(go_enrichment_dreg)
+simplified_GO_enrichment_dreg <- simplify(go_enrichment_dreg, cutoff = 0.5, by = "p.adjust", select_fun = min)
+View(as.data.frame(simplified_GO_enrichment_dreg))
+write.table(GO_enrichment_dreg_results, "DEN_GO_enrichment_dreg_results.txt", sep = "\t")
+write.table(simplified_GO_enrichment_dreg, "simplified_DEN_GO_enrichment_dreg_results.txt", sep = "\t")
+barplot(simplified_GO_enrichment_dreg, showCategory = 20)
+
+#FAT MASH-HCC condition_______________________________________________________________________________________________________________________________
+# Identify B cells by expression of Cd19
+B_cells <- subset(integrated_CCl4_noC, subset = Cd19 > 0)
+dim(B_cells) #370 B cells in this dataset
+B_cells <- JoinLayers(B_cells)
+DefaultAssay(B_cells) <- "RNA"
+# Reclustering B cells
+B_cells <- FindVariableFeatures(B_cells)
+B_cells <- ScaleData(B_cells)
+B_cells <- RunPCA(B_cells)
+B_cells <- FindNeighbors(B_cells, dims = 1:10)
+B_cells <- FindClusters(B_cells, resolution = 0.5)
+B_cells <- RunUMAP(B_cells, dims = 1:10)
+# Assign groups
+B_cells$group <- ifelse(B_cells$orig.ident %in% c("CCl4_T_1", "CCl4_T_4", "CCl4_T_83"), "CCl4_T", "CCl4_V")
+# Plot UMAP
+DimPlot(B_cells, reduction = "umap", group.by = "group", label = FALSE, pt.size = 1)
+
+# Differential expression analysis
+DE_B_cells <- FindMarkers(B_cells, ident.1 = "CCl4_T", ident.2 = "CCl4_V", group.by = "group", assay = "RNA")
+# Display the top differentially expressed genes
+head(DE_B_cells)
+#export DE results
+write.table(DE_B_cells, "CCl4_DE_Bcells.txt", sep = "\t")
+
+#Pathway Analysis
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+#upregulated genes GO enrichment analysis
+# Subset the gene list to include only significantly differentially expressed genes (upregulated in CCl4_T)
+significant_genes_ureg <- DE_B_cells[DE_B_cells$p_val_adj < 0.05 & abs(DE_B_cells$avg_log2FC) > 0.25 & 
+                                       DE_B_cells$avg_log2FC > 0, ]
+# Prepare the list of gene symbols
+gene_symbols_sig_ureg <- rownames(significant_genes_ureg)
+# Convert gene symbols to Entrez IDs
+entrez_ids_ureg <- bitr(gene_symbols_sig_ureg, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+# Perform GO enrichment analysis
+go_enrichment_ureg <- enrichGO(gene = entrez_ids_ureg$ENTREZID,
+                               OrgDb = org.Mm.eg.db,
+                               ont = "BP",          # Biological Process
+                               pAdjustMethod = "BH",
+                               pvalueCutoff = 0.05,
+                               qvalueCutoff = 0.05,
+                               readable = TRUE)
+View(as.data.frame(go_enrichment_ureg))
+GO_enrichment_ureg_results <- as.data.frame(go_enrichment_ureg)
+simplified_GO_enrichment_ureg <- simplify(go_enrichment_ureg, cutoff = 0.5, by = "p.adjust", select_fun = min)
+View(as.data.frame(simplified_GO_enrichment_ureg))
+write.table(GO_enrichment_ureg_results, "CCl4_GO_enrichment_ureg_results.txt", sep = "\t")
+write.table(simplified_GO_enrichment_ureg, "simplified_CCl4_GO_enrichment_ureg_results.txt", sep = "\t")
+barplot(simplified_GO_enrichment_ureg, showCategory = 20)
+
+#downregulated genes GO enrichment analysis
+# Subset the gene list to include only significantly differentially expressed genes (downregulated in CCl4_T)
+significant_genes_dreg <- DE_B_cells[DE_B_cells$p_val_adj < 0.05 & abs(DE_B_cells$avg_log2FC) > 0.25 & 
+                                       DE_B_cells$avg_log2FC < 0, ]
+# Prepare the list of gene symbols
+gene_symbols_sig_dreg <- rownames(significant_genes_dreg)
+# Convert gene symbols to Entrez IDs
+entrez_ids_dreg <- bitr(gene_symbols_sig_dreg, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+# Perform GO enrichment analysis
+go_enrichment_dreg <- enrichGO(gene = entrez_ids_dreg$ENTREZID,
+                               OrgDb = org.Mm.eg.db,
+                               ont = "BP",          # Biological Process
+                               pAdjustMethod = "BH",
+                               pvalueCutoff = 0.05,
+                               qvalueCutoff = 0.05,
+                               readable = TRUE)
+View(as.data.frame(go_enrichment_dreg))
+GO_enrichment_dreg_results <- as.data.frame(go_enrichment_dreg)
+simplified_GO_enrichment_dreg <- simplify(go_enrichment_dreg, cutoff = 0.5, by = "p.adjust", select_fun = min)
+View(as.data.frame(simplified_GO_enrichment_dreg))
+write.table(GO_enrichment_dreg_results, "CCl4_GO_enrichment_dreg_results.txt", sep = "\t")
+write.table(simplified_GO_enrichment_dreg, "simplified_CCl4_GO_enrichment_dreg_results.txt", sep = "\t")
+barplot(simplified_GO_enrichment_dreg, showCategory = 20)
+
+
+
+
+
+
+
+#SECTION 6. EXTENDED FIGURE 1Q - LYMPHOCYTES AND TUMOR CELLS CROSS-SPECIES CORRELATION (vehicle mouse conditions and human tumor)___________________
+#___________________________________________________________________________________________________________________________________________________
+#create DEN_V specific seurat object (TN MASH, vehicle condition)
+DEN_V_451.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_V_451_sample.h5")
+DEN_V_487.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_V_487_sample.h5")
+DEN_V_508.data <- Read10X_h5("Feature:Barcode Matrix (sample)/DEN_V_508_sample.h5")
+DEN_V_451 <- CreateSeuratObject(counts = DEN_V_451.data, project = "DEN_V_451")
+DEN_V_487 <- CreateSeuratObject(counts = DEN_V_487.data, project = "DEN_V_487")
+DEN_V_508 <- CreateSeuratObject(counts = DEN_V_508.data, project = "DEN_V_508")
+#preprocess data
+DEN_V_451 <- NormalizeData(DEN_V_451)
+DEN_V_451 <- FindVariableFeatures(DEN_V_451)
+DEN_V_487 <- NormalizeData(DEN_V_487)
+DEN_V_487 <- FindVariableFeatures(DEN_V_487)
+DEN_V_508 <- NormalizeData(DEN_V_508)
+DEN_V_508 <- FindVariableFeatures(DEN_V_508)
+# Integrate the three samples
+DEN_V_datasets_list <- list(DEN_V_451,DEN_V_487,DEN_V_508)
+anchors_DEN_V <- FindIntegrationAnchors(object.list = DEN_V_datasets_list, dims = 1:25)
+integrated_DEN_V <- IntegrateData(anchorset = anchors_DEN_V, dims = 1:25)
+save(integrated_DEN_V, file = "integrated_DEN_V.RData")
+# Scale the integrated data
+integrated_DEN_V <- ScaleData(integrated_DEN_V)
+integrated_DEN_V <- RunPCA(integrated_DEN_V)
+# Find neighbors and clusters
+integrated_DEN_V <- FindNeighbors(integrated_DEN_V, dims = 1:25)
+integrated_DEN_V <- FindClusters(integrated_DEN_V, resolution = 1.0)
+integrated_DEN_V <- RunUMAP(integrated_DEN_V, dims = 1:25)
+DimPlot(integrated_DEN_V, reduction = "umap", label = TRUE)
+
+#create CCl4_V specific seurat object (FAT MASH, vehicle condition)
+CCl4_V_45.data <- Read10X_h5("Feature:Barcode Matrix (sample)/CCl4_V_45_sample.h5")
+CCl4_V_66.data <- Read10X_h5("Feature:Barcode Matrix (sample)/CCl4_V_66_sample.h5")
+CCl4_V_67.data <- Read10X_h5("Feature:Barcode Matrix (sample)/CCl4_V_67_sample.h5")
+CCl4_V_45 <- CreateSeuratObject(counts = CCl4_V_45.data, project = "CCl4_V_45")
+CCl4_V_66 <- CreateSeuratObject(counts = CCl4_V_66.data, project = "CCl4_V_66")
+CCl4_V_67 <- CreateSeuratObject(counts = CCl4_V_67.data, project = "CCl4_V_67")
+#preprocess data
+CCl4_V_45 <- NormalizeData(CCl4_V_45)
+CCl4_V_45 <- FindVariableFeatures(CCl4_V_45)
+CCl4_V_66 <- NormalizeData(CCl4_V_66)
+CCl4_V_66 <- FindVariableFeatures(CCl4_V_66)
+CCl4_V_67 <- NormalizeData(CCl4_V_67)
+CCl4_V_67 <- FindVariableFeatures(CCl4_V_67)
+# Integrate the three samples
+CCl4_V_datasets_list <- list(CCl4_V_45,CCl4_V_66,CCl4_V_67)
+anchors_CCl4_V <- FindIntegrationAnchors(object.list = CCl4_V_datasets_list, dims = 1:25)
+integrated_CCl4_V <- IntegrateData(anchorset = anchors_CCl4_V, dims = 1:25)
+save(integrated_CCl4_V, file = "integrated_CCl4_V.RData")
+# Scale the integrated data
+integrated_CCl4_V <- ScaleData(integrated_CCl4_V)
+integrated_CCl4_V <- RunPCA(integrated_CCl4_V)
+# Find neighbors and clusters
+integrated_CCl4_V <- FindNeighbors(integrated_CCl4_V, dims = 1:25)
+integrated_CCl4_V <- FindClusters(integrated_CCl4_V, resolution = 1.0)
+integrated_CCl4_V <- RunUMAP(integrated_CCl4_V, dims = 1:25)
+DimPlot(integrated_CCl4_V, reduction = "umap", label = TRUE)
+
+#Ensure rowname consistency between human NASH tumor (alvarez) and mouse data______________
+
+#load human NASH tum dataset (need to remove ensemblIDs)
+load("Alvarez_nashTumor_integratedData.RData")
+DefaultAssay(integrated_data_nash_tumor) <- "RNA"
+head(rownames(integrated_data_nash_tumor))
+tail(rownames(integrated_data_nash_tumor))
+# Step 1: Extract the current rownames with version numbers
+current_rownames <- rownames(integrated_data_nash_tumor)
+# Step 2: Remove version numbers (anything after the decimal point)
+updated_rownames <- sub("\\..*", "", current_rownames)
+# Step 3: Reapply the updated rownames to the RNA assay as a whole
+rownames(integrated_data_nash_tumor) <- updated_rownames
+# Step 4: Manually update each layer's rownames, and drop the scale data entirely
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`counts.Alvarez_NASH_tum_1`) <- updated_rownames
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`data.Alvarez_NASH_tum_1`) <- updated_rownames
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`counts.Alvarez_NASH_tum_2`) <- updated_rownames
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`data.Alvarez_NASH_tum_2`) <- updated_rownames
+integrated_data_nash_tumor@assays$RNA@layers$`scale.data.Alvarez_NASH_tum_1` <- NULL
+integrated_data_nash_tumor@assays$RNA@layers$`scale.data.Alvarez_NASH_tum_2` <- NULL
+# Step 5: Remove NA's that are there for some reason
+View(as.data.frame(updated_rownames))
+na_indices <- c(57537:57569, 58089:58099)
+# Subset the main RNA assay
+integrated_data_nash_tumor <- subset(integrated_data_nash_tumor, features = -na_indices)
+# Subset each relevant layer manually
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`counts.Alvarez_NASH_tum_1`) <- updated_rownames[-na_indices]
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`data.Alvarez_NASH_tum_1`) <- updated_rownames[-na_indices]
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`counts.Alvarez_NASH_tum_2`) <- updated_rownames[-na_indices]
+rownames(integrated_data_nash_tumor@assays$RNA@layers$`data.Alvarez_NASH_tum_2`) <- updated_rownames[-na_indices]
+#Step 6: Double-check the rownames after filtering
+head(rownames(integrated_data_nash_tumor))
+tail(rownames(integrated_data_nash_tumor))
+head(rownames(integrated_data_nash_tumor@assays$RNA@layers$counts.Alvarez_NASH_tum_1))
+head(rownames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2))
+tail(rownames(integrated_data_nash_tumor@assays$RNA@layers$counts.Alvarez_NASH_tum_2))
+tail(rownames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1))
+#save integrated object
+save(integrated_data_nash_tumor, file = "integrated_data_NASHtum_newFeatures_andLayers.RData")
+
+#load mouse datasets (need to convert from mouse gene symbol to orthologous human ensemblID)
+load("integrated_CCl4_V.RData")
+load("integrated_DEN_V.RData")
+DefaultAssay(integrated_CCl4_V) <- "RNA"
+DefaultAssay(integrated_DEN_V) <- "RNA"
+#take a quick glance at the feature names (ran a now-deleted test, but confirmed they are identical)
+head(rownames(integrated_CCl4_V))
+head(rownames(integrated_DEN_V))
+tail(rownames(integrated_CCl4_V))
+tail(rownames(integrated_DEN_V))
+# Load required libraries
+library(biomaRt)
+# Connect to the mouse Ensembl dataset using biomaRt
+mouse <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+#Map Mouse Gene Symbols to Mouse Ensembl Gene IDs
+mouse_gene_mapping <- getBM(
+  attributes = c("mgi_symbol", "ensembl_gene_id"),
+  filters = "mgi_symbol",
+  values = rownames(integrated_CCl4_V),  # Since gene names are identical between the two objects, we can use either
+  mart = mouse
+)
+# Rename columns for clarity
+colnames(mouse_gene_mapping) <- c("mgi_symbol", "mouse_ensembl_gene")
+str(mouse_gene_mapping)
+#Map Mouse Ensembl Gene IDs to Human Ensembl Gene IDs
+mouse_to_human_mapping <- getBM(
+  attributes = c("ensembl_gene_id", "hsapiens_homolog_ensembl_gene"),
+  filters = "ensembl_gene_id",
+  values = mouse_gene_mapping$mouse_ensembl_gene,
+  mart = mouse
+)
+# Rename columns for clarity
+colnames(mouse_to_human_mapping) <- c("mouse_ensembl_gene", "human_ensembl_gene")
+# Check the mouse_to_human_mapping to ensure it’s loaded correctly
+head(mouse_to_human_mapping)
+str(mouse_to_human_mapping)
+# Identify duplicate mouse Ensembl IDs
+duplicated_genes <- mouse_to_human_mapping$mouse_ensembl_gene[duplicated(mouse_to_human_mapping$mouse_ensembl_gene)]
+num_duplicates <- length(duplicated_genes)
+cat("Number of duplicated mouse Ensembl IDs:", num_duplicates, "\n")
+head(duplicated_genes)
+# Filter to retain only the first human ortholog per mouse gene (remove duplicates)
+mouse_to_human_mapping_one_to_one <- mouse_to_human_mapping[!duplicated(mouse_to_human_mapping$mouse_ensembl_gene), ]
+# Check the final mapping to ensure duplicates are removed
+final_mapping <- merge(mouse_gene_mapping, mouse_to_human_mapping_one_to_one, by = "mouse_ensembl_gene")
+# Confirm there are no duplicates in the final mapping
+sum(duplicated(final_mapping$mouse_ensembl_gene))  # Should be 0
+# Filter to retain only the first mouse gene for each human Ensembl gene
+final_mapping_one_to_one <- final_mapping[!duplicated(final_mapping$human_ensembl_gene), ]
+# Check for duplicates to confirm filtering
+sum(duplicated(final_mapping_one_to_one$human_ensembl_gene))  # Should be 0
+#we now have our mapping df, with strict 1-to-1 mapping between mouse ensembl, human ensembl, and mouse GS
+View(final_mapping_one_to_one)
+
+#now, we need to update each layer of the mouse datasets. Approach is:
+#1. Extract GS from CCl4_V and Map to GS in mapping df
+#2. Identify indices of GS without human ensembl, and remove these rows from RNA assay entirely
+#3. Manually Update Each Layer with Human Ensembl IDs
+
+#1 Extract gene names from RNA assay
+mouse_gene_symbols <- rownames(integrated_CCl4_V)
+# Join with one-to-one mapping DataFrame to get human Ensembl IDs
+mapping_df <- data.frame(mouse_gene_symbols)
+mapped_genes <- mapping_df %>%
+  left_join(final_mapping_one_to_one, by = c("mouse_gene_symbols" = "mgi_symbol"))
+nrow(mapped_genes)
+nrow(integrated_CCl4_V@assays$RNA)
+mapped_genes <- mapped_genes[-c(8832,12902,18700),]
+View(as.data.frame(mapped_genes[1]) == as.data.frame(rownames(integrated_CCl4_V@assays$RNA)))
+#2 Find indices of genes without human Ensembl IDs
+unmapped_indices <- which(is.na(mapped_genes$human_ensembl_gene))
+cat("Number of unmapped genes:", length(unmapped_indices), "\n")
+# Filter to keep only genes with human Ensembl IDs
+filtered_genes <- mapped_genes[-unmapped_indices, ]
+#Remove unmapped genes from the RNA assay, affecting all layers in integrated_CCl4_V and DEN_V
+integrated_CCl4_V <- integrated_CCl4_V[-unmapped_indices, ]
+integrated_DEN_V <- integrated_DEN_V[-unmapped_indices, ]
+nrow(integrated_CCl4_V)
+nrow(integrated_DEN_V)
+nrow(filtered_genes)
+View(as.data.frame(filtered_genes[1]) == as.data.frame(rownames(integrated_CCl4_V@assays$RNA)))
+View(as.data.frame(filtered_genes[1]) == as.data.frame(rownames(integrated_DEN_V@assays$RNA)))
+human_ensemblIDs <- filtered_genes[,3]
+#Manually Update Each Layer with Human Ensembl IDs
+#CCl4 object
+# Apply new rownames to the RNA assay as a whole
+rownames(integrated_CCl4_V) <- human_ensemblIDs
+# Step 4: Manually update each layer's rownames, and drop the scale data entirely
+rownames(integrated_CCl4_V@assays$RNA@layers$counts.CCl4_V_45) <- human_ensemblIDs
+rownames(integrated_CCl4_V@assays$RNA@layers$counts.CCl4_V_66) <- human_ensemblIDs
+rownames(integrated_CCl4_V@assays$RNA@layers$counts.CCl4_V_67) <- human_ensemblIDs
+rownames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) <- human_ensemblIDs
+rownames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66) <- human_ensemblIDs
+rownames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67) <- human_ensemblIDs
+integrated_CCl4_V@assays$RNA@layers$`scale.data.CCl4_V_45` <- NULL
+integrated_CCl4_V@assays$RNA@layers$`scale.data.CCl4_V_66` <- NULL
+integrated_CCl4_V@assays$RNA@layers$`scale.data.CCl4_V_67` <- NULL
+#save integrated object
+save(integrated_CCl4_V, file = "integrated_data_CCl4V_humanFeatures_andLayers.RData")
+#DEN object
+# Apply new rownames to the RNA assay as a whole
+rownames(integrated_DEN_V) <- human_ensemblIDs
+# Step 4: Manually update each layer's rownames, and drop the scale data entirely
+rownames(integrated_DEN_V@assays$RNA@layers$counts.DEN_V_451) <- human_ensemblIDs
+rownames(integrated_DEN_V@assays$RNA@layers$counts.DEN_V_487) <- human_ensemblIDs
+rownames(integrated_DEN_V@assays$RNA@layers$counts.DEN_V_508) <- human_ensemblIDs
+rownames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) <- human_ensemblIDs
+rownames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487) <- human_ensemblIDs
+rownames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_508) <- human_ensemblIDs
+integrated_DEN_V@assays$RNA@layers$`scale.data.DEN_V_451` <- NULL
+integrated_DEN_V@assays$RNA@layers$`scale.data.DEN_V_487` <- NULL
+integrated_DEN_V@assays$RNA@layers$`scale.data.DEN_V_508` <- NULL
+#save integrated object
+save(integrated_DEN_V, file = "integrated_data_DENV_humanFeatures_andLayers.RData")
+
+#calculate lymphocyte (CD45+) correlations______________________________________________________
+# Load the data
+load("integrated_data_CCl4V_humanFeatures_andLayers.RData")
+load("integrated_data_DENV_humanFeatures_andLayers.RData")
+load("integrated_data_NASHtum_newFeatures_andLayers.RData")
+#Set default assay for all objects
+DefaultAssay(integrated_CCl4_V) <- "RNA"
+DefaultAssay(integrated_DEN_V) <- "RNA"
+DefaultAssay(integrated_data_nash_tumor) <- "RNA"
+# List the normalized count layer names for each condition
+nash_tumor_layers <- c("data.Alvarez_NASH_tum_1", "data.Alvarez_NASH_tum_2")
+den_layers <- c("data.DEN_V_451", "data.DEN_V_487", "data.DEN_V_508")
+ccl4_layers <- c("data.CCl4_V_45","data.CCl4_V_66", "data.CCl4_V_67")
+#assign colnames of each RNA assay to each layer, assuming they are in order
+colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1) <- colnames(integrated_data_nash_tumor)[1:ncol(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1)]
+colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2) <- colnames(integrated_data_nash_tumor)[(ncol(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1) + 1):ncol(integrated_data_nash_tumor)]
+colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) <- colnames(integrated_DEN_V)[1:ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451)]
+colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487) <- colnames(integrated_DEN_V)[(ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) + 1):(ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) + ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487))]
+colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_508) <- colnames(integrated_DEN_V)[(ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) + ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487) + 1):ncol(integrated_DEN_V)]
+colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) <- colnames(integrated_CCl4_V)[1:ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45)]
+colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66) <- colnames(integrated_CCl4_V)[(ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) + 1):(ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) + ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66))]
+colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67) <- colnames(integrated_CCl4_V)[(ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) + ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66) + 1):ncol(integrated_CCl4_V)]
+# Define Ensembl IDs for Cd45 (lymphocyte marker)
+cd45_ensembl <- "ENSG00000081237"
+# Define a function to find lymphocytes based on Cd45 expression
+find_T_cells <- function(seurat_obj, cd45_gene) {
+  # Fetch data for both markers
+  cd45_data <- FetchData(seurat_obj, vars = cd45_gene)
+  # Identify cells that express Cd3e
+  t_cells <- which(cd45_data > 0)
+  return(colnames(seurat_obj)[t_cells])
+}
+
+# Find T cells for each dataset
+nash_tumor_t_cells <- find_T_cells(integrated_data_nash_tumor, cd45_ensembl)
+den_t_cells <- find_T_cells(integrated_DEN_V, cd45_ensembl)
+ccl4_t_cells <- find_T_cells(integrated_CCl4_V, cd45_ensembl)
+# Subset each relevant layer manually for T cells
+subset_layers_for_t_cells <- function(seurat_obj, layer_names, t_cell_ids) {
+  for (layer in layer_names) {
+    # Subset each layer by keeping only the T cells
+    seurat_obj@assays$RNA@layers[[layer]] <- seurat_obj@assays$RNA@layers[[layer]][, t_cell_ids, drop = FALSE]
+  }
+  return(seurat_obj)
+}
+
+valid_t_cells_1 <- nash_tumor_t_cells[nash_tumor_t_cells %in% colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1)]
+cat("Number of valid T cells in data.Alvarez_NASH_tum_1:", length(valid_t_cells_1), "\n")
+valid_t_cells_2 <- nash_tumor_t_cells[nash_tumor_t_cells %in% colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2)]
+cat("Number of valid T cells in data.Alvarez_NASH_tum_2:", length(valid_t_cells_2), "\n")
+integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1 <- integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1[, valid_t_cells_1, drop = FALSE]
+integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2 <- integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2[, valid_t_cells_2, drop = FALSE]
+#repeat for den v condition
+valid_t_cells_1 <- den_t_cells[den_t_cells %in% colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451)]
+cat("Number of valid T cells in data.DEN_V_451:", length(valid_t_cells_1), "\n")
+valid_t_cells_2 <- den_t_cells[den_t_cells %in% colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487)]
+cat("Number of valid T cells in data.DEN_V_487:", length(valid_t_cells_2), "\n")
+valid_t_cells_3 <- den_t_cells[den_t_cells %in% colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_508)]
+cat("Number of valid T cells in data.DEN_V_508:", length(valid_t_cells_3), "\n")
+integrated_DEN_V@assays$RNA@layers$data.DEN_V_451 <- integrated_DEN_V@assays$RNA@layers$data.DEN_V_451[, valid_t_cells_1, drop = FALSE]
+integrated_DEN_V@assays$RNA@layers$data.DEN_V_487 <- integrated_DEN_V@assays$RNA@layers$data.DEN_V_487[, valid_t_cells_2, drop = FALSE]
+integrated_DEN_V@assays$RNA@layers$data.DEN_V_508 <- integrated_DEN_V@assays$RNA@layers$data.DEN_V_508[, valid_t_cells_3, drop = FALSE]
+#repeat for ccl4 v condition
+valid_t_cells_1 <- ccl4_t_cells[ccl4_t_cells %in% colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45)]
+cat("Number of valid T cells in data.CCl4_V_45:", length(valid_t_cells_1), "\n")
+valid_t_cells_2 <- ccl4_t_cells[ccl4_t_cells %in% colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66)]
+cat("Number of valid T cells in data.CCl4_V_66:", length(valid_t_cells_2), "\n")
+valid_t_cells_3 <- ccl4_t_cells[ccl4_t_cells %in% colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67)]
+cat("Number of valid T cells in data.CCl4_V_67:", length(valid_t_cells_3), "\n")
+integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45 <- integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45[, valid_t_cells_1, drop = FALSE]
+integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66 <- integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66[, valid_t_cells_2, drop = FALSE]
+integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67 <- integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67[, valid_t_cells_3, drop = FALSE]
+
+# Define a function to aggregate normalized counts in chunks for T cells
+aggregate_t_cell_layers_in_chunks <- function(seurat_obj, layer_names, chunk_size = 5000) {
+  total_genes <- nrow(seurat_obj)
+  aggregated_result <- numeric(total_genes)
+  print(paste("Total genes to process:", total_genes))
+  for (start_idx in seq(1, total_genes, by = chunk_size)) {
+    end_idx <- min(start_idx + chunk_size - 1, total_genes)
+    print(paste("Processing genes", start_idx, "to", end_idx, "out of", total_genes))
+    # Initialize an empty list to store layer data for this chunk
+    chunk_layer_data <- list()
+    for (layer in layer_names) {
+      print(paste("Processing layer:", layer, "for genes", start_idx, "to", end_idx))
+      data_chunk <- seurat_obj@assays$RNA@layers[[layer]][start_idx:end_idx, ]
+      chunk_layer_data[[layer]] <- rowMeans(as.matrix(data_chunk))
+      rm(data_chunk)
+      gc()
+    }
+    chunk_aggregated <- rowMeans(do.call(cbind, chunk_layer_data))
+    aggregated_result[start_idx:end_idx] <- chunk_aggregated
+    rm(chunk_layer_data, chunk_aggregated)
+    gc()
+  }
+  print("T cell aggregation complete.")
+  return(aggregated_result)
+}
+
+# Aggregate T cell normalized counts for each condition
+nash_tumor_t_cells_agg <- aggregate_t_cell_layers_in_chunks(integrated_data_nash_tumor, nash_tumor_layers)
+den_t_cells_agg <- aggregate_t_cell_layers_in_chunks(integrated_DEN_V, den_layers)
+ccl4_t_cells_agg <- aggregate_t_cell_layers_in_chunks(integrated_CCl4_V, ccl4_layers)
+# Convert the aggregated results to matrices with rownames
+nash_tumor_t_cells_agg <- matrix(nash_tumor_t_cells_agg, nrow = length(nash_tumor_t_cells_agg), dimnames = list(rownames(integrated_data_nash_tumor@assays$RNA@layers$counts.Alvarez_NASH_tum_1), "NASH-tumor"))
+den_t_cells_agg <- matrix(den_t_cells_agg, nrow = length(den_t_cells_agg), dimnames = list(rownames(integrated_DEN_V@assays$RNA@layers$counts.DEN_V_451), "DEN"))
+ccl4_t_cells_agg <- matrix(ccl4_t_cells_agg, nrow = length(ccl4_t_cells_agg), dimnames = list(rownames(integrated_CCl4_V@assays$RNA@layers$counts.CCl4_V_45), "CCl4"))
+# Find common genes across all conditions for T cells
+common_t_cell_genes <- Reduce(intersect, list(
+  rownames(nash_tumor_t_cells_agg),
+  rownames(den_t_cells_agg),
+  rownames(ccl4_t_cells_agg)
+))
+str(common_t_cell_genes)
+# Subset each aggregated matrix to include only common genes
+nash_tumor_t_cells_agg <- nash_tumor_t_cells_agg[common_t_cell_genes, , drop = FALSE]
+den_t_cells_agg <- den_t_cells_agg[common_t_cell_genes, , drop = FALSE]
+ccl4_t_cells_agg <- ccl4_t_cells_agg[common_t_cell_genes, , drop = FALSE]
+# Combine the human samples for T cells
+human_t_cell_expr <- cbind(nash_tumor_t_cells_agg)
+# Combine the mouse samples for T cells
+mouse_t_cell_expr <- cbind(den_t_cells_agg, ccl4_t_cells_agg)
+# Check dimensions of matrices to ensure they match
+if (nrow(human_t_cell_expr) != nrow(mouse_t_cell_expr)) {
+  stop("The number of rows (genes) in human_t_cell_expr and mouse_t_cell_expr do not match.")
+}
+# Calculate the correlation matrix for T cells
+correlation_matrix_t_cells <- cor(mouse_t_cell_expr, human_t_cell_expr, use = "pairwise.complete.obs", method = "pearson")
+View(correlation_matrix_t_cells)
+# Generate the heatmap for T cell correlations
+pheatmap(correlation_matrix_t_cells,
+         main = "Mouse vs Human Correlation (Cd45+ Cells, Norm Counts)",
+         cluster_rows = FALSE,
+         cluster_cols = FALSE,
+         display_numbers = TRUE,
+         fontsize_number = 14,
+         number_color = "black",
+         fontsize_row = 12,
+         fontsize_col = 12,
+         color = colorRampPalette(c("blue", "white", "red"))(50),
+         cellwidth = 80, cellheight = 80,
+         angle_col = 45,
+         breaks = seq(0, 1, length.out = 51),  # Set the color range to 0 - 1
+         legend_breaks = seq(0, 1, by = 0.25),
+         legend_labels = c("0","0.25","0.50","0.75","1"))
+#correlation values: DEN = 0.4952548, CCl4 = 0.5259323
+
+#calculate tumor cell (AFP+ or GPC3+) correlations______________________________________________________
+# Load the data
+load("integrated_data_CCl4V_humanFeatures_andLayers.RData")
+load("integrated_data_DENV_humanFeatures_andLayers.RData")
+load("integrated_data_NASHtum_newFeatures_andLayers.RData")
+#Set default assay for all objects
+DefaultAssay(integrated_CCl4_V) <- "RNA"
+DefaultAssay(integrated_DEN_V) <- "RNA"
+DefaultAssay(integrated_data_nash_tumor) <- "RNA"
+# List the raw count layer names for each condition
+nash_tumor_layers <- c("data.Alvarez_NASH_tum_1", "data.Alvarez_NASH_tum_2")
+den_layers <- c("data.DEN_V_451", "data.DEN_V_487", "data.DEN_V_508")
+ccl4_layers <- c("data.CCl4_V_45","data.CCl4_V_66", "data.CCl4_V_67")
+#assign colnames of each RNA assay to each layer, assuming they are in order
+colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1) <- colnames(integrated_data_nash_tumor)[1:ncol(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1)]
+colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2) <- colnames(integrated_data_nash_tumor)[(ncol(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1) + 1):ncol(integrated_data_nash_tumor)]
+colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) <- colnames(integrated_DEN_V)[1:ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451)]
+colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487) <- colnames(integrated_DEN_V)[(ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) + 1):(ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) + ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487))]
+colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_508) <- colnames(integrated_DEN_V)[(ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451) + ncol(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487) + 1):ncol(integrated_DEN_V)]
+colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) <- colnames(integrated_CCl4_V)[1:ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45)]
+colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66) <- colnames(integrated_CCl4_V)[(ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) + 1):(ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) + ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66))]
+colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67) <- colnames(integrated_CCl4_V)[(ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45) + ncol(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66) + 1):ncol(integrated_CCl4_V)]
+
+# Define Ensembl IDs for Cd45 and Cd19 (B cell markers)
+afp_ensembl <- "ENSG00000081051"
+gpc3_ensembl <- "ENSG00000147257"
+
+# Define a function to find cells based on Cd45 and Cd19 expression
+find_B_cells <- function(seurat_obj, afp_gene, gpc3_gene) {
+  # Fetch data for both markers
+  afp_data <- FetchData(seurat_obj, vars = afp_gene)
+  gpc3_data <- FetchData(seurat_obj, vars = gpc3_gene)
+  # Identify cells that express both Cd45 and Cd19
+  b_cells <- which(afp_data > 0 & gpc3_data > 0)
+  return(colnames(seurat_obj)[b_cells])
+}
+# Find B cells for each dataset
+nash_tumor_t_cells <- find_B_cells(integrated_data_nash_tumor, afp_ensembl, gpc3_ensembl)
+den_t_cells <- find_B_cells(integrated_DEN_V, afp_ensembl, gpc3_ensembl)
+ccl4_t_cells <- find_B_cells(integrated_CCl4_V, afp_ensembl, gpc3_ensembl)
+# Subset each relevant layer manually for T cells
+subset_layers_for_t_cells <- function(seurat_obj, layer_names, t_cell_ids) {
+  for (layer in layer_names) {
+    # Subset each layer by keeping only the T cells
+    seurat_obj@assays$RNA@layers[[layer]] <- seurat_obj@assays$RNA@layers[[layer]][, t_cell_ids, drop = FALSE]
+  }
+  return(seurat_obj)
+}
+
+valid_t_cells_1 <- nash_tumor_t_cells[nash_tumor_t_cells %in% colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1)]
+cat("Number of valid T cells in data.Alvarez_NASH_tum_1:", length(valid_t_cells_1), "\n")
+valid_t_cells_2 <- nash_tumor_t_cells[nash_tumor_t_cells %in% colnames(integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2)]
+cat("Number of valid T cells in data.Alvarez_NASH_tum_2:", length(valid_t_cells_2), "\n")
+integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1 <- integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_1[, valid_t_cells_1, drop = FALSE]
+integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2 <- integrated_data_nash_tumor@assays$RNA@layers$data.Alvarez_NASH_tum_2[, valid_t_cells_2, drop = FALSE]
+#repeat for den v condition
+valid_t_cells_1 <- den_t_cells[den_t_cells %in% colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_451)]
+cat("Number of valid T cells in data.DEN_V_451:", length(valid_t_cells_1), "\n")
+valid_t_cells_2 <- den_t_cells[den_t_cells %in% colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_487)]
+cat("Number of valid T cells in data.DEN_V_487:", length(valid_t_cells_2), "\n")
+valid_t_cells_3 <- den_t_cells[den_t_cells %in% colnames(integrated_DEN_V@assays$RNA@layers$data.DEN_V_508)]
+cat("Number of valid T cells in data.DEN_V_508:", length(valid_t_cells_3), "\n")
+integrated_DEN_V@assays$RNA@layers$data.DEN_V_451 <- integrated_DEN_V@assays$RNA@layers$data.DEN_V_451[, valid_t_cells_1, drop = FALSE]
+integrated_DEN_V@assays$RNA@layers$data.DEN_V_487 <- integrated_DEN_V@assays$RNA@layers$data.DEN_V_487[, valid_t_cells_2, drop = FALSE]
+integrated_DEN_V@assays$RNA@layers$data.DEN_V_508 <- integrated_DEN_V@assays$RNA@layers$data.DEN_V_508[, valid_t_cells_3, drop = FALSE]
+#repeat for ccl4 v condition
+valid_t_cells_1 <- ccl4_t_cells[ccl4_t_cells %in% colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45)]
+cat("Number of valid T cells in data.CCl4_V_45:", length(valid_t_cells_1), "\n")
+valid_t_cells_2 <- ccl4_t_cells[ccl4_t_cells %in% colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66)]
+cat("Number of valid T cells in data.CCl4_V_66:", length(valid_t_cells_2), "\n")
+valid_t_cells_3 <- ccl4_t_cells[ccl4_t_cells %in% colnames(integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67)]
+cat("Number of valid T cells in data.CCl4_V_67:", length(valid_t_cells_3), "\n")
+integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45 <- integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_45[, valid_t_cells_1, drop = FALSE]
+integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66 <- integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_66[, valid_t_cells_2, drop = FALSE]
+integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67 <- integrated_CCl4_V@assays$RNA@layers$data.CCl4_V_67[, valid_t_cells_3, drop = FALSE]
+
+# Define a function to aggregate norm counts in chunks for T cells
+aggregate_t_cell_layers_in_chunks <- function(seurat_obj, layer_names, chunk_size = 5000) {
+  total_genes <- nrow(seurat_obj)
+  aggregated_result <- numeric(total_genes)
+  print(paste("Total genes to process:", total_genes))
+  for (start_idx in seq(1, total_genes, by = chunk_size)) {
+    end_idx <- min(start_idx + chunk_size - 1, total_genes)
+    print(paste("Processing genes", start_idx, "to", end_idx, "out of", total_genes))
+    # Initialize an empty list to store layer data for this chunk
+    chunk_layer_data <- list()
+    for (layer in layer_names) {
+      print(paste("Processing layer:", layer, "for genes", start_idx, "to", end_idx))
+      data_chunk <- seurat_obj@assays$RNA@layers[[layer]][start_idx:end_idx, ]
+      chunk_layer_data[[layer]] <- rowMeans(as.matrix(data_chunk))
+      rm(data_chunk)
+      gc()
+    }
+    chunk_aggregated <- rowMeans(do.call(cbind, chunk_layer_data))
+    aggregated_result[start_idx:end_idx] <- chunk_aggregated
+    rm(chunk_layer_data, chunk_aggregated)
+    gc()
+  }
+  print("T cell aggregation complete.")
+  return(aggregated_result)
+}
+
+# Aggregate T cell norm counts for each condition
+nash_tumor_t_cells_agg <- aggregate_t_cell_layers_in_chunks(integrated_data_nash_tumor, nash_tumor_layers)
+den_t_cells_agg <- aggregate_t_cell_layers_in_chunks(integrated_DEN_V, den_layers)
+ccl4_t_cells_agg <- aggregate_t_cell_layers_in_chunks(integrated_CCl4_V, ccl4_layers)
+# Convert the aggregated results to matrices with rownames
+nash_tumor_t_cells_agg <- matrix(nash_tumor_t_cells_agg, nrow = length(nash_tumor_t_cells_agg), dimnames = list(rownames(integrated_data_nash_tumor@assays$RNA@layers$counts.Alvarez_NASH_tum_1), "NASH-tumor"))
+den_t_cells_agg <- matrix(den_t_cells_agg, nrow = length(den_t_cells_agg), dimnames = list(rownames(integrated_DEN_V@assays$RNA@layers$counts.DEN_V_451), "DEN"))
+ccl4_t_cells_agg <- matrix(ccl4_t_cells_agg, nrow = length(ccl4_t_cells_agg), dimnames = list(rownames(integrated_CCl4_V@assays$RNA@layers$counts.CCl4_V_45), "CCl4"))
+# Find common genes across all conditions for T cells
+common_t_cell_genes <- Reduce(intersect, list(
+  rownames(nash_tumor_t_cells_agg),
+  rownames(den_t_cells_agg)
+))
+str(common_t_cell_genes)
+# Subset each aggregated matrix to include only common genes
+nash_tumor_t_cells_agg <- nash_tumor_t_cells_agg[common_t_cell_genes, , drop = FALSE]
+den_t_cells_agg <- den_t_cells_agg[common_t_cell_genes, , drop = FALSE]
+ccl4_t_cells_agg <- ccl4_t_cells_agg[common_t_cell_genes, , drop = FALSE]
+# Combine the human samples for T cells
+human_t_cell_expr <- cbind(nash_tumor_t_cells_agg)
+# Combine the mouse samples for T cells
+mouse_t_cell_expr <- cbind(den_t_cells_agg)
+# Check dimensions of matrices to ensure they match
+if (nrow(human_t_cell_expr) != nrow(mouse_t_cell_expr)) {
+  stop("The number of rows (genes) in human_t_cell_expr and mouse_t_cell_expr do not match.")
+}
+# Calculate the correlation matrix for T cells
+correlation_matrix_t_cells <- cor(mouse_t_cell_expr, human_t_cell_expr, use = "pairwise.complete.obs", method = "pearson")
+View(correlation_matrix_t_cells)
+#correlation values for AFP: DEN = 0.4582949, CCl4 = 0.4720150
+#correlation values for GPC3: DEN = 0.4603396, CCl4 = 0.4773885
+
+#visualize correlation results________________________________________________________________________
+library(pheatmap)
+# Create the matrix with your data
+data_matrix <- matrix(c(0.4744916, 0.4952548,  # All Cell Types
+                        0.4582949, 0.4603396,  # CD45+ Lymphocytes
+                        0.4954347, 0.5259323,  # AFP+ Tumor Cells
+                        0.4720150, 0.4773885), # GPC3+ Tumor Cells
+                      nrow = 2, byrow = TRUE)
+# Assign row and column names
+rownames(data_matrix) <- c("DEN", "CCl4")
+colnames(data_matrix) <- c("All Cell Types","CD45+ Lymphocytes", "AFP+ Tumor Cells", "GPC3+ Tumor Cells")
+# Create a heatmap using pheatmap
+pheatmap(data_matrix, 
+         cluster_rows = FALSE, 
+         cluster_cols = FALSE, 
+         display_numbers = TRUE,
+         fontsize_number = 14,
+         number_color = "black",
+         fontsize_row = 12,
+         fontsize_col = 12,
+         color = colorRampPalette(c("blue", "white", "red"))(50),
+         cellwidth = 80, cellheight = 80,
+         angle_col = 45,
+         breaks = seq(0, 1, length.out = 51),  # Set the color range to 0 - 1
+         legend_breaks = seq(0, 1, by = 0.25),  
+         legend_labels = c("0","0.25","0.50","0.75","1")) 
+#flip rows and cols, remove all cell types
+data_matrix <- matrix(c(0.4952548,0.5259323,0.4582949,0.4720150,0.4603396,0.4773885), 
+                      nrow = 3, byrow = TRUE)
+print(data_matrix)
+# Assign row and column names
+colnames(data_matrix) <- c("DEN", "CCl4")
+rownames(data_matrix) <- c("CD45+ Lymphocytes", "AFP+ Tumor Cells", "GPC3+ Tumor Cells")
+# Create a heatmap using pheatmap
+pheatmap(data_matrix, 
+         cluster_rows = FALSE, 
+         cluster_cols = FALSE, 
+         display_numbers = TRUE,
+         fontsize_number = 14,
+         number_color = "black",
+         fontsize_row = 12,
+         fontsize_col = 12,
+         color = colorRampPalette(c("blue", "white", "red"))(50),
+         cellwidth = 80, cellheight = 80,
+         angle_col = 45,
+         breaks = seq(0, 1, length.out = 51),  # Set the color range to 0 - 1
+         legend_breaks = seq(0, 1, by = 0.25),  
+         legend_labels = c("0","0.25","0.50","0.75","1")) 
+
+
